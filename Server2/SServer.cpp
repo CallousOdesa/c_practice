@@ -1,4 +1,4 @@
-#include "SServer.h"
+﻿#include "SServer.h"
 #include "includes.h"
 
 
@@ -21,6 +21,13 @@ void SServer::startServer() {
 
 	listening = socket(AF_INET, SOCK_STREAM, 0);
 
+	ULONG ulBlock;
+	ulBlock = 1;
+	if (ioctlsocket(listening, FIONBIO, &ulBlock) == SOCKET_ERROR)
+	{
+		return;
+	}
+
 	if (listening == SOCKET_ERROR 
 		|| listening == INVALID_SOCKET
 		) {
@@ -28,7 +35,7 @@ void SServer::startServer() {
 		return;
 	}
 
-	if (bind(listening, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR) {
+	if (::bind(listening, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR) {
 		printf("Socket succed binded\n");
 	}
 
@@ -46,21 +53,33 @@ void SServer::closeServer() {
 
 
 void SServer::handle() {
-	while (true) {
+	FD_SET ReadSet;
+	int ReadySock;
+	int	iSize;
+	SOCKADDR_IN clientaddr;
+	SOCKET sClient;
 
-		SOCKADDR_IN client;
-		int clientSize = sizeof(client);
-		SOCKET clientSocket = accept(listening, (sockaddr*)&client, &clientSize);
-		
-		if (clientSocket != 0) {
-			printf("Client connected from 0  %u.%u.%u.%u:%u\n",
-				(unsigned char)client.sin_addr.S_un.S_un_b.s_b1,
-				(unsigned char)client.sin_addr.S_un.S_un_b.s_b2,
-				(unsigned char)client.sin_addr.S_un.S_un_b.s_b3,
-				(unsigned char)client.sin_addr.S_un.S_un_b.s_b4,
-				ntohs(client.sin_port));
-			SClient* client_instance = new SClient(clientSocket, client);
+	while (true) {
+		FD_ZERO(&ReadSet);
+		FD_SET(listening, &ReadSet);
+
+		if ((ReadySock = select(0, &ReadSet, NULL, NULL, NULL)) == SOCKET_ERROR
+			) {
+			cout << "Invalid socket. Skipping!" << endl;
 		}
-		Sleep(500);
+
+		if (FD_ISSET(listening, &ReadSet))
+		{
+			iSize = sizeof(clientaddr);
+			sClient = accept(listening,
+				(struct sockaddr *)&clientaddr, &iSize);
+			if (sClient == INVALID_SOCKET)
+			{
+				cout << "Socket can't be created!" << endl;
+				break;
+			}
+
+			SClient* client_instance = new SClient(sClient, clientaddr);
+		}
 	}
 }

@@ -4,5 +4,6 @@
 #include <iostream>
 #include <WinSock2.h>
 #include <winsock.h>
+#include <thread>
 #include "SClient.h"
 using namespace std;
